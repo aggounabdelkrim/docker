@@ -1,0 +1,111 @@
+#++++++++++++HEURE+++++++++++++
+# Désactive la synchronisation NTP avec les serveurs publics si elle est activée
+sudo timedatectl set-ntp no
+# Définir le fuseau horaire sur Europe/Paris
+sudo timedatectl set-timezone Europe/Paris
+# Activer la synchronisation NTP
+sudo timedatectl set-ntp true
+# Vérifier le statut
+timedatectl status
+
+#++++++++++++BUREAU GRAPHIQUE+++++++++++++
+#Exécutez la commande suivante pour désactiver le démarrage automatique de l'interface graphique lors du démarrage du système
+systemctl set-default multi-user.target
+#Redémarrez votre système pour appliquer les changements
+reboot
+#supprimer complètement l'interface graphique et les paquets associé
+sudo yum groupremove "GNOME Desktop"
+sudo yum groupremove "KDE Plasma Workspaces"
+sudo yum autoremove
+
+
+#++++++++DOCKER+++++++++
+#Mettez à jour votre système CentOS
+sudo yum update
+#Installez les dépendances nécessaires pour ajouter des packages via HTTPS
+sudo yum install -y yum-utils device-mapper-persistent-data lvm2
+#Ajoutez le référentiel Docker à votre système
+sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+#Installez Docker Engine
+sudo yum install docker-ce docker-ce-cli containerd.io
+#Démarrez le service Docker et configurez-le pour qu'il démarre au démarrage
+sudo systemctl start docker
+sudo systemctl enable docker
+#Vérifiez que Docker a bien été installé 
+docker --version
+#ajoutez votre utilisateur au groupe docker 
+sudo usermod -aG docker admin
+
+
+#++++++++POPSTGRES+++++++++
+#Télécharger l'image PostgreSQL
+docker pull postgres
+#Exécuter le conteneur PostgreSQL
+docker run --name postgres-conteneur -e POSTGRES_PASSWORD=postgres -d -p 5432:5432 postgres
+#Arrêter  le conteneur
+docker stop postgres-conteneur
+#Supprimer le conteneur
+docker rm  postgres-conteneur
+#Supprimer l'image 
+docker rmi  postgres-conteneur
+
+#++++++++++client PostgreSQL++++++++++
+sudo vi /etc/yum.repos.d/pgdg.repo
+-----------------------
+[pgdg13]
+name=PostgreSQL 13 for RHEL/CentOS 7 - x86_64
+baseurl=https://download.postgresql.org/pub/repos/yum/13/redhat/rhel-7-x86_64
+enabled=1
+gpgcheck=0
+----------------------
+sudo yum install postgresql13
+
+
+#
+sudo docker run --name postgres-container -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e POSTGRES_DB=postgres -d -p 5476:5432 -v /var/lib/postgresql/data:/var/lib/postgresql/data postgres
+
+psql -h localhost -p 5476 -U postgres -d postgres
+
+
+#docker-compose
+sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+
+sudo curl -L "https://github.com/docker/compose/releases/download/2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+
+
+sudo chmod +x /usr/local/bin/docker-compose
+
+docker-compose --version
+
+#Portainer Docker
+sudo docker run -d -p 9000:9000 --name portainer --restart always -v /var/run/docker.sock:/var/run/docker.sock portainer/portainer
+
+
+mkdir /home/admin/docker-compose/postgres/
+vi docker-compose.yml
+------------------------------
+version: '3.8'
+
+services:
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - /var/lib/postgresql/data:/var/lib/postgresql/data
+      - ./pg_hba.conf:/var/lib/postgresql/data/pg_hba.conf # Remplacer le fichier pg_hba.conf dans le conteneur
+    container_name: Postgres
+    ports:
+      - "5476:5432"
+-----------------------------
+docker-compose up -d
+docker-compose restart
+docker-compose stop
+docker-compose down
+
+
+docker cp 1052d6ed0eef:/var/lib/postgresql/data/pg_hba.conf /home/admin/docker-compose/postgres/
+
